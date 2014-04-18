@@ -175,23 +175,39 @@ abstract class XmlConverter
       }
     }
 
-    private static function childrenGroupedByName(\DOMNodeList $children){
+    /**
+     * Returns the converted Json array for the SimpleXMLElement $value
+     */
+    private static function toArrayObject(\SimpleXMLElement $value)
+    {
+      $namespaces=$value->getNamespaces();
+      var_dump($namespaces);
 
-      $groupedByName=array();
+      $node = dom_import_simplexml($value);
 
-      foreach ($children as $child){
-        $name = $child->nodeName;
+      self::trimWhitespaceTextNodes($node);
 
-        if(!isset($groupedByName[$name]))
-          $groupedByName[$name]=array();
+      if(is_null($value)) return NULL;
 
-        $groupedByName[$name][]=$child;
+      if(count($node->childNodes)==0){
+        $jsonArray=array($node->nodeName => $node->textContent);
+        return $jsonArray;
       }
+      else{
+        $namespacesContextStack=array();
+        $jsonArray = array($node->nodeName => self::build_from_xml($node, $namespacesContextStack));
 
-      return $groupedByName;
+        return $jsonArray;
+      }
     }
 
-    private static function build_from_xml(\DOMNode $node){
+    /**
+     * Builds a Json array from the given DOMNode $node
+     *
+     * @param $node The root node of the current DOM subtree
+     * @param $namespaceContext all namespaces inherited from the parent context
+     */
+    private static function build_from_xml(\DOMNode $node, $namespaceContext){
 
       $jsonArray = array();
 
@@ -202,11 +218,17 @@ abstract class XmlConverter
       foreach($node->attributes as $attribute)
         $attributes[$attribute->nodeName] = $attribute->nodeValue;
 
-      /* $node->attributes does not retrieve the xmlns attributes, so we need to append them manually */
-      $namespaces=simplexml_import_dom($node)->getNamespaces();
-      if(count($namespaces)>0)
-        foreach($namespaces as $key => $val){
-          $attributes["xmlns:$key"] = $val;
+      /*
+       * $node->attributes does not retrieve the xmlns attributes, so we need to append them manually
+       */
+      $namespaces_declaredOnNode = simplexml_import_dom($node)->getDocNamespaces();
+      if(count($namespaces_declaredOnNode)>0)
+        foreach($namespaces_declaredOnNode as $key=>$value){
+          /* Namespaces already in the current context are declared in an ancestor node, do not add them */
+            if(!isset($namespaceContext[$key])){
+              $attributes["xmlns:$key"] = $value;
+              $namespaceContext[$key]=$value;
+            }
         }
 
       /* If there are no children and attributes, just return the node's text value */
@@ -238,8 +260,9 @@ abstract class XmlConverter
       foreach($childrenByName as $name => $children){
         $items = array();
         foreach($children as $child){
-          if($child->nodeType === XML_ELEMENT_NODE)
-            $items[]=self::build_from_xml($child);
+          if($child->nodeType === XML_ELEMENT_NODE){
+            $items[]=self::build_from_xml($child, $namespaceContext);
+          }
           else if($child->nodeType ===XML_TEXT_NODE && $child->nodeValue ==="")
           {/* do not serialize this*/}
           else
@@ -258,28 +281,10 @@ abstract class XmlConverter
       return $jsonArray;
     }
 
-    private static function toArrayObject(\SimpleXMLElement $value)
-    {
-        $namespaces=$value->getNamespaces();
-        var_dump($namespaces);
-
-        $node = dom_import_simplexml($value);
-
-        self::trimWhitespaceTextNodes($node);
-
-        if(is_null($value)) return NULL;
-
-        if(count($node->childNodes)==0){
-          $jsonArray=array($node->nodeName => $node->textContent);
-          return $jsonArray;
-        }
-        else{
-          $jsonArray = array($node->nodeName => self::build_from_xml($node));
-
-          return $jsonArray;
-        }
-    }
-
+    /**
+     * Trims whitespace from text nodes of $root, otherwise
+     * the converted Json would have extra text nodes
+     */
     private static function trimWhiteSpaceTextNodes (\DOMNode $root){
 
       if($root->nodeType === XML_TEXT_NODE)
@@ -288,6 +293,26 @@ abstract class XmlConverter
       if($root->hasChildNodes())
         foreach($root->childNodes as $child)
           self::trimWhiteSpaceTextNodes($child);
+    }
+
+    /**
+     * Returns an map of $name => $children_group,
+     * grouping nodes in $children by name
+     */
+    private static function childrenGroupedByName(\DOMNodeList $children){
+
+      $groupedByName=array();
+
+      foreach ($children as $child){
+        $name = $child->nodeName;
+
+        if(!isset($groupedByName[$name]))
+          $groupedByName[$name]=array();
+
+        $groupedByName[$name][]=$child;
+      }
+
+      return $groupedByName;
     }
 
 }
