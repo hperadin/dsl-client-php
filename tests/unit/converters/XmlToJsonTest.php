@@ -37,7 +37,8 @@ class XmlToJsonTest extends BaseTestCase {
    */
   public function testXmlToJson($sourceXml_filename) {
     print "\n--------------------------------------\n";
-    print "| Testing for: $sourceXml_filename:";
+    //print "| Testing for: $sourceXml_filename:";
+    print "| Testing for: " . $this->getSourcePath ( $sourceXml_filename ) ;
     print "\n--------------------------------------\n";
 
     $convertedJson_filename = $sourceXml_filename . ".json";
@@ -54,8 +55,9 @@ class XmlToJsonTest extends BaseTestCase {
 
     print "converting to array: \n";
     $convertedJson_object = XmlConverter::toArray ( $sourceXml_object );
-    print "converted to array: \n";
 
+//     print "converted to array: \n";
+//     var_dump($convertedJson_object);
 
     //$roundtripXml_object = XmlConverter::toXml ( $convertedJson_object );
 
@@ -76,8 +78,11 @@ class XmlToJsonTest extends BaseTestCase {
 //     $this->assertXmlEquivalent ( $referenceRoundtripXml_object, $sourceXml_object );
   }
   public function assertJsonEquivalent($expected, $actual) {
+    var_dump($actual);
+    print "---\n";
     var_dump(XmlArrayComparator::equals($expected, $actual) . "\n");
   }
+
   public function assertXmlEquivalent($lhs, $rhs) {
     print_r ( "lhs Xml:\n");
     print_r ( $lhs);

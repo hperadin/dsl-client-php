@@ -17,16 +17,20 @@ class XmlArrayComparator {
     // TODO: normalize namespace attributes, currently there are problems with those
     // TODO: perhaps collapse text and cdata nodes for comparison
 
-    $xmlPaths_lhs=array();
-    $xmlPaths_rhs=array();
+    $xmlPaths_lhs = array();
+    $xmlPaths_rhs = array();
 
-    self::buildPaths($xmlPaths_lhs, array(), $xml_lhs);
-    self::buildPaths($xmlPaths_rhs, array(), $xml_rhs);
+    self::buildPaths($xmlPaths_lhs, $xmlPaths_lhs, $xml_lhs, 0);
+    self::buildPaths($xmlPaths_rhs, $xmlPaths_rhs, $xml_rhs, 0);
 
-     print "paths built:\n";
-//     var_dump($xmlPaths_lhs);
-//     print "---\n";
-//    var_dump($xmlPaths_rhs);
+//     print_r("Expected: \n");
+//     var_dump($xml_lhs);
+
+//     foreach ($xmlPaths_lhs as $path){
+//       print "---\n";
+//       var_dump($path);
+//       print "---\n";
+//     }
 
     $result = self::compareAllPaths($xmlPaths_lhs, $xmlPaths_rhs);
     var_dump($result);
@@ -34,24 +38,32 @@ class XmlArrayComparator {
     return $result;
   }
 
-  private static function keyOrWhole($node){
-    if (is_array($node))
-      return key($node);
-    else
-      return $node;
-  }
+  private static function buildPaths(&$allPaths, $pathUpToCurrentNode, $node, $depth) {
+    if (is_array ( $node )) {
 
-  private static function buildPaths(&$allPaths, $pathUpToNode, $node){
-      if(is_array($node)){
-        foreach($node as $child){
-          self::buildPaths($allPaths, $pathUpToNode, $child);
-        }
+      if(!is_int(key($node)))
+        $pathUpToCurrentNode [] = key ( $node ) . " <- node";
+
+      /// TODO: similar to Json array problem, arrays in other arrays
+
+      foreach ( $node as $key => $child ) {
+        if(is_int($key))
+          print "int key found: $key -> \n";
+        print "Going down to: $depth -> \n";
+        self::buildPaths ( $allPaths, $pathUpToCurrentNode, $child, $depth +1);
       }
-      else{
-        $pathUpToNode[]=$node;
-        $allPaths[]=$pathUpToNode;
-        $pathUpToNode[]=array();
-      }
+
+    } else {
+
+      $pathUpToCurrentNode [] = $node . " <- leaf";
+      $allPaths [] = $pathUpToCurrentNode;
+
+      print "Path complete -> \n";
+      print "depth: $depth \n";
+
+      print "Path up:";
+      var_dump ( $pathUpToCurrentNode );
+    }
   }
 
   /**
@@ -71,24 +83,22 @@ class XmlArrayComparator {
    */
   private static function compareAllPaths($lhs, $rhs){
     if(count($lhs)!=count($rhs)){
-      print_r("The arrays given are of different length:\n");
-      print_r("$lhs\n");
-      print_r("$rhs\n");
+      print_r("The number of root-to-leaf paths is not equal: ". count($lhs) . " vs. " . count($rhs) . "\n");
       return false;
     }
 
     foreach($lhs as $lhsPath){
-      $found=false;
-      foreach($rhs as $rhsPath){
+      $found=FALSE;
+      foreach($rhs as $key=>$rhsPath){
         if(self::nodeListsEqual($lhsPath, $rhsPath)){
-          $found=true;
-          //unset($rhs[$keyR]);
+          $found=TRUE;
+          unset($rhs[$key]);
           break;
         }
       }
-      if($found === false){
-        print_r("No pair found for array:\n");
-        print_r($lhs);
+      if($found === FALSE){
+        print_r("No pair found for path:\n");
+        var_dump($lhsPath);
         return false;
       }
     }
