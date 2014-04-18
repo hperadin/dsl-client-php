@@ -74,9 +74,9 @@ abstract class XmlConverter
         } else {
             $text = '';
         }
-        
+
         $str = '<'.$name.'>'.$text.'</'.$name.'>';
-        $xml = new \SimpleXmlElement($str);
+        $xml = new \SimpleXMLElement($str);
 
         if(is_array($root))
             self::array_to_xml($root, $xml);
@@ -130,47 +130,165 @@ abstract class XmlConverter
         }
     }
 
-    private static function xml_to_array(\SimpleXMLElement $xml, array &$arr)
+    private static function xml_to_array(\DOMNode $xml, array &$arr)
     {
-        if(count($xml->attributes()) === 0
-                && count($xml->children()) === 0
-                && !(string)$xml) {
-            $arr = null;
-            return;
-        }
-        foreach($xml->attributes() as $key => $value) {
-            $arr['@'.$key] = (string)$value;
-        }
-        $text = (string)$xml;
-        if($text && count($xml->children()) === 0) {
-            $arr['#text'] = $text;
-        }
-        foreach($xml->children() as $key => $value) {
-            $arr[$key] = isset($arr[$key]) ? array() : false;
-        }
-        foreach($arr as $key=>$value)
-            if($arr[$key]===false)
-                unset($arr[$key]);
+       $attributes = $xml->attributes;
+       $children = $xml->childNodes;
 
-        foreach($xml->children() as $key => $value) {
-            if(isset($arr[$key])) {
-                $index = count($arr[$key]);
-                $arr[$key][$index] = array();
-                self::xml_to_array($value, $arr[$key][$index]);
+       $childrenNodesCount = count($children);
+       $attributeNodesCount = count($attributes);
+
+       if(!$xml->hasChildNodes() && !$xml->hasAttributes()){
+         $arr[]=null;
+         return;
+       }
+
+       if($xml->hasAttributes())
+         foreach($attributes as $attr)
+           $arr['@'.$attr->nodeName] = $attr->nodeValue;
+
+       foreach($children as $child)
+       {
+          $name = $child->nodeName;
+
+          if($child->nodeType === XML_TEXT_NODE){
+            $textContent=trim($child->textContent);
+            if(strlen($textContent)>0){
+              if(isset($arr["#text"]))
+                $arr["#text"].=$textContent;
+              else
+              $arr["#text"]=$textContent;
             }
-            else {
-                $arr[$key] = array();
-                self::xml_to_array($xml->{$key}, $arr[$key]);
-            }
+          }
+          else if(!isset($arr[$name])){
+            self::xml_to_array($child,$arr);
+          }
+          else if (!is_array($arr[$name])){
+            $node = clone $arr[$name];
+            $arr[$name]=array();
+            $arr[$name][]=$node;
+            self::xml_to_array($child,$arr[$name]);
+          }
+          else{
+            self::xml_to_array($child,$arr[$name]);
+          }
+      }
+    }
+
+    private static function childrenGroupedByName(\DOMNodeList $children){
+
+      $groupedByName=array();
+
+      foreach ($children as $child){
+        $name = $child->nodeName;
+
+        if(!isset($groupedByName[$name]))
+          $groupedByName[$name]=array();
+
+        $groupedByName[$name][]=$child;
+      }
+
+      return $groupedByName;
+    }
+
+    private static function build_from_xml(\DOMNode $node){
+
+      $jsonArray = array();
+
+      $children = $node->childNodes;
+
+      /* Collect the attributes into an array */
+      $attributes=array();
+      foreach($node->attributes as $attribute)
+        $attributes[$attribute->nodeName] = $attribute->nodeValue;
+
+      /* $node->attributes does not retrieve the xmlns attributes, so we need to append them manually */
+      $namespaces=simplexml_import_dom($node)->getNamespaces();
+      if(count($namespaces)>0)
+        foreach($namespaces as $key => $val){
+          $attributes["xmlns:$key"] = $val;
         }
+
+      /* If there are no children and attributes, just return the node's text value */
+      if(count($children)===0 && count($attributes)===0){
+        $txt = $node->textContent;
+        if($txt==="") $jsonArray=null; else $jsonArray=$txt;
+      }
+
+      /* Sort the nodes by children names */
+      $childrenByName=array();
+      foreach($children as $child){
+        $name=$child->nodeName;
+
+        if(!isset($childrenByName[$name]))
+          $childrenByName[$name]=array();
+
+        $childrenByName[$name][]=$child;
+      }
+
+      /* Serialize the attributes */
+      foreach($attributes as $name=>$value){
+        $jsonArray["@".$name]=$value;
+      }
+
+      /*
+       * Put the child nodes into the array; Nodes are sorted by name, nodes
+       * having the same name are put together into an array
+       */
+      foreach($childrenByName as $name => $children){
+        $items = array();
+        foreach($children as $child){
+          if($child->nodeType === XML_ELEMENT_NODE)
+            $items[]=self::build_from_xml($child);
+          else if($child->nodeType ===XML_TEXT_NODE && $child->nodeValue ==="")
+          {/* do not serialize this*/}
+          else
+            $items[]=is_null($child->nodeValue)? "" : $child->nodeValue;
+        }
+
+        /* Insert the resulting object into the return value array */
+        if(count($items)>1)
+          $jsonArray[$name]=$items;
+        else if(count($items)==1)
+          $jsonArray[$name]=$items[key($items)]; // first element of items
+        else if(count($items)==0)
+          {/* Do not append this */}
+      }
+
+      return $jsonArray;
     }
 
     private static function toArrayObject(\SimpleXMLElement $value)
     {
-        $root = array();
+        $namespaces=$value->getNamespaces();
+        var_dump($namespaces);
 
-        self::xml_to_array($value, $root);
-        $arr = array($value->getName() => $root);
-        return $arr;
+        $node = dom_import_simplexml($value);
+
+        self::trimWhitespaceTextNodes($node);
+
+        if(is_null($value)) return NULL;
+
+        if(count($node->childNodes)==0){
+          $jsonArray=array($node->nodeName => $node->textContent);
+          return $jsonArray;
+        }
+        else{
+          $jsonArray = array($node->nodeName => self::build_from_xml($node));
+
+          return $jsonArray;
+        }
     }
+
+    private static function trimWhiteSpaceTextNodes (\DOMNode $root){
+
+      if($root->nodeType === XML_TEXT_NODE)
+        $root->nodeValue = trim($root->nodeValue);
+
+      if($root->hasChildNodes())
+        foreach($root->childNodes as $child)
+          self::trimWhiteSpaceTextNodes($child);
+    }
+
 }
+
