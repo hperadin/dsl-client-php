@@ -22,7 +22,7 @@ function cfg($key) {
     return isset($_ENV[$key]) ? $_ENV[$key] : null;
 }
 
-$project = parse_ini_file(__DIR__.'/platform/project.ini');
+$project = parse_ini_file(__DIR__.'/platform/dsl-project.ini');
 $url        = cfg('client_url') !== null ? cfg('client_url') : $project['api-url'];
 $username   = cfg('client_username') !== null ? cfg('client_username') : $project['username'];
 $password   = cfg('client_password') !== null ? cfg('client_password') : $project['project-id'];

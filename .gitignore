@@ -14,3 +14,11 @@ vendor
 /tests/log
 
 .idea
+
+/target
+
+# Eclipse configuration
+
+.project
+.buildpath
+.settings
