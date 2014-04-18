@@ -266,7 +266,8 @@ abstract class XmlConverter
           else if($child->nodeType ===XML_TEXT_NODE && $child->nodeValue ==="")
           {/* do not serialize this*/}
           else
-            $items[]=is_null($child->nodeValue)? "" : $child->nodeValue;
+            //$items[]=is_null($child->nodeValue)? "" : $child->nodeValue;
+            $items[]=$child->nodeValue; // TODO, see if this makes any difference; some NULL nodes were serialised as array(0) instead of NULL
         }
 
         /* Insert the resulting object into the return value array */
@@ -275,7 +276,7 @@ abstract class XmlConverter
         else if(count($items)==1)
           $jsonArray[$name]=$items[key($items)]; // first element of items
         else if(count($items)==0)
-          {/* Do not append this */}
+        {/* Append nothing */}
       }
 
       return $jsonArray;
