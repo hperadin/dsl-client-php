@@ -27,9 +27,11 @@ class XmlToJsonTest extends BaseTestCase {
       ) );
     }
 
-    return array (
-        $files_packed_as_arrays [1]
-    );
+    return $files_packed_as_arrays;
+
+//     return array (
+//         $files_packed_as_arrays[0]
+//     );
   }
 
   /**
@@ -78,8 +80,11 @@ class XmlToJsonTest extends BaseTestCase {
 //     $this->assertXmlEquivalent ( $referenceRoundtripXml_object, $sourceXml_object );
   }
   public function assertJsonEquivalent($expected, $actual) {
+    print "---Expected:---\n";
+    var_dump($expected);
+    print "---Actual:---\n";
     var_dump($actual);
-    print "---\n";
+    print "---Comparator output:---\n";
     var_dump(XmlArrayComparator::equals($expected, $actual) . "\n");
   }
 
