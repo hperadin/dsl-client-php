@@ -224,8 +224,10 @@ abstract class XmlConverter
       $namespaces_declaredOnNode = simplexml_import_dom($node)->getDocNamespaces();
       if(count($namespaces_declaredOnNode)>0)
         foreach($namespaces_declaredOnNode as $key=>$value){
-          /* Namespaces already in the current context are declared in an ancestor node, do not add them */
-            if(!isset($namespaceContext[$key])){
+
+          /* Namespaces already in the current context are declared in an ancestor node, do not add them unless we are redefining the namespace */
+            if(!isset($namespaceContext[$key])
+                ||(isset($namespaceContext[$key]) && $namespaceContext[$key] !== $value)){
               $attributes["xmlns:$key"] = $value;
               $namespaceContext[$key]=$value;
             }

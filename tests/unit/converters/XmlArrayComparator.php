@@ -20,10 +20,10 @@ class XmlArrayComparator {
     $pathUpToNode_lhs=array();
     $pathUpToNode_rhs=array();
 
-    print_r("------------LHS--------------\n");
-    self::buildPaths ( $xmlPaths_lhs, $pathUpToNode_lhs, $xml_lhs);
+     print_r("------------LHS--------------\n");
+    self::buildPaths ( $xmlPaths_lhs, $pathUpToNode_lhs, $xml_lhs, array());
     print_r("-------------RHS-------------\n");
-    self::buildPaths ( $xmlPaths_rhs, $pathUpToNode_rhs, $xml_rhs);
+    self::buildPaths ( $xmlPaths_rhs, $pathUpToNode_rhs, $xml_rhs, array());
     print_r("--------------------------\n");
 
     $result = self::compareAllPaths ( $xmlPaths_lhs, $xmlPaths_rhs );
@@ -32,12 +32,35 @@ class XmlArrayComparator {
     return $result;
   }
 
-  private static function buildPaths(&$allPaths, $pathUpToCurrentNode, $node) {
+  private static function buildPaths(&$allPaths, $pathUpToCurrentNode, $node, $namespaces) {
     if (is_array ( $node )) {
       foreach ( $node as $key => $child ) {
+
+        /* If the child is a namespace attribute, put it on the namespace context.
+         If it's already there, skip it in comparison. */
+        if(substr($key, 0, strlen("@xmlns")) === "@xmlns"){
+          if(!isset($namespaces[$key])
+                ||(isset($namespaces[$key]) && $namespaces[$key] !== $child)){
+            /* print("namespace onto current stack: $key\n"); */
+            $namespaces[$key] = $child;
+          }
+          else{
+            continue;
+          }
+        }
+
+        /* Non-array #text nodes are normalised as a single string in the path built */
+        if(substr($key, 0, strlen("#text")) === "#text"){
+          if(!is_array($child)){
+            $pathUpUntilThisChild = $pathUpToCurrentNode;
+            $pathUpUntilThisChild [] = $key;
+            continue;
+          }
+        }
+
         $pathUpUntilThisChild = $pathUpToCurrentNode;
         $pathUpUntilThisChild [] = $key;
-        self::buildPaths ( $allPaths, $pathUpUntilThisChild, $child);
+        self::buildPaths ( $allPaths, $pathUpUntilThisChild, $child, $namespaces);
       }
     } else {
       $pathUpToCurrentNode [] = $node;
