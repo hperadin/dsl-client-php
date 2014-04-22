@@ -234,7 +234,7 @@ abstract class XmlConverter
       /* If there are no children and attributes, just return the node's text value */
       if(count($children)===0 && count($attributes)===0){
         $txt = $node->textContent;
-        if($txt==="") $jsonArray=null; else $jsonArray=$txt;
+        if($txt==="") $jsonArray=NULL; else $jsonArray=$txt;
       }
 
       /* Sort the nodes by children names */
@@ -278,6 +278,14 @@ abstract class XmlConverter
         else if(count($items)==0)
         {/* Append nothing */}
       }
+
+      /* Single #text nodes are just text */
+      if(count($attributes) === 0 && count($jsonArray) === 1 && key($jsonArray)==="#text")
+        $jsonArray=current($jsonArray);
+
+      /* Zero-sized arrays are in fact NULLs*/
+      if(count($jsonArray)===0)
+        $jsonArray=NULL;
 
       return $jsonArray;
     }
