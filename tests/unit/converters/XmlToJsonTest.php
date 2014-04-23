@@ -27,11 +27,11 @@ class XmlToJsonTest extends BaseTestCase {
       ) );
     }
 
-//      return $files_packed_as_arrays;
+       return $files_packed_as_arrays;
 
-     return array (
-         $files_packed_as_arrays[4]
-     );
+      return array (
+          $files_packed_as_arrays[8]
+      );
   }
 
   /**

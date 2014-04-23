@@ -2,9 +2,28 @@
 use NGS\Converter\XmlConverter;
 
 /**
- * TODO: Not a test
- * TODO: Docs
- * Utility method for comparing two Xml arrays
+ * A utility method for comparing two arrays converted by
+ * XmlConverter from a SimpleXml tree. The arrays are considered
+ * equivalent if the Xml trees are identical up to the ordering of the Xml nodes.
+ *
+ * The comparator builds a list of all paths root-to-leaf, and for each of
+ * those paths in the LHS tree tries to find a match in the RHS tree. If every
+ * path is matched, the comparison function returns {@code true}, {@code false}
+ * otherwise.
+ *
+ * Notes:
+ *
+ * There are problems with namespace attributes. The {@code SimpleXml} library does not
+ * handle XML namespace declarations gracefuly. While namespaces are parsed flawlessly,
+ * the namespace attributes themselves are not listed together with all the rest of the
+ * attributes. XmlConverter improvises a workaround, according to a node's namespace it
+ * artificially inserts the xmlns attributes into the topmost node used. As a consequence,
+ * any redundant xlmns declarations are lost in the conversion. Thus namespaces are taken
+ * into account during comparison, and any duplicate namespace declarations are ignored
+ *
+ * Problems with the #text nodes. With Xml nodes having only a redundant xmlns declaration
+ * and text content the xmlns attribute is lost in conversion, and the #text node is merged
+ * into a string.
  */
 class XmlArrayComparator {
 
@@ -12,8 +31,7 @@ class XmlArrayComparator {
    * Returns true if the two XML arrays are equal
    */
   public static function equals($xml_lhs, $xml_rhs) {
-    // TODO: normalize namespace attributes, currently there are problems with those
-    // TODO: perhaps collapse text and cdata nodes for comparison
+
     $xmlPaths_lhs = array ();
     $xmlPaths_rhs = array ();
 
@@ -48,18 +66,20 @@ class XmlArrayComparator {
             continue;
           }
         }
-
         /* Non-array #text nodes are normalised as a single string in the path built */
+
         if(substr($key, 0, strlen("#text")) === "#text"){
           if(!is_array($child)){
             $pathUpUntilThisChild = $pathUpToCurrentNode;
-            $pathUpUntilThisChild [] = $key;
+            self::buildPaths ( $allPaths, $pathUpUntilThisChild, $child, $namespaces);
+
             continue;
           }
         }
 
         $pathUpUntilThisChild = $pathUpToCurrentNode;
         $pathUpUntilThisChild [] = $key;
+
         self::buildPaths ( $allPaths, $pathUpUntilThisChild, $child, $namespaces);
       }
     } else {
@@ -91,17 +111,23 @@ class XmlArrayComparator {
    *          The rhs XML tree paths (array of arrays)
    * @return {@code true} if they are equal {@code false} otherwise
    */
-  private static function compareAllPaths($lhs, $rhs) {
+  private static function compareAllPaths($lhs_path, $rhs_path) {
 
     $retval=TRUE;
 
+    $lhs=$lhs_path;
+    $rhs=$rhs_path;
+
      if (count ( $lhs ) != count ( $rhs )) {
        print_r ( "The number of root-to-leaf paths is not equal: " . count ( $lhs ) . " vs. " . count ( $rhs ) . "\n" );
-       //return false;
        $retval=false;
+
+       if(count($rhs)>count($lhs)){
+         print " (reversing lhr/rhs for debugging) \n";
+         $lhs=$rhs_path;
+         $rhs=$lhs_path;
+       }
      }
-
-
 
     foreach ( $lhs as $key_lhs => $lhsPath ) {
       $found = FALSE;
@@ -131,7 +157,6 @@ class XmlArrayComparator {
       }
     }
 
-    //return true;
     return $retval;
   }
 
@@ -159,7 +184,7 @@ class XmlArrayComparator {
     while ( current ( $lhs ) !== FALSE ) {
       $node1 = current ( $lhs );
       $node2 = current ( $rhs );
-      // if(self::nodesEqual($node1, $node2)===FALSE)
+
       if (($node1 === $node2) === FALSE){
         return false;
       }
@@ -169,23 +194,5 @@ class XmlArrayComparator {
     }
 
     return true;
-  }
-  private static function nodesEqual($node1, $node2) {
-    if (! isset ( $node1 ) & ! isset ( $node2 ))
-      return true;
-    else if (! isset ( $node1 ) || ! isset ( $node2 )) {
-      return false;
-    } else {
-      return self::nodesHaveEqualNames ( $node1, $node2 ) && self::nodesHaveEqualNumberOfChildren ( $node1, $node2 ) && self::nodesHaveEqualValues ( $node1, $node2 );
-    }
-  }
-  private static function nodesHaveEqualNames($node1, $node2) {
-    return key ( $node1 ) === key ( $node2 );
-  }
-  private static function nodesHaveEqualNumberOfChildren($node1, $node2) {
-    return count ( $node1 ) === count ( $node2 );
-  }
-  private static function nodesHaveEqualValues($node1, $node2) {
-    return value ( $node1 ) === value ( $node2 );
   }
 }

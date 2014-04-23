@@ -180,9 +180,6 @@ abstract class XmlConverter
      */
     private static function toArrayObject(\SimpleXMLElement $value)
     {
-      $namespaces=$value->getNamespaces();
-      var_dump($namespaces);
-
       $node = dom_import_simplexml($value);
 
       self::trimWhitespaceTextNodes($node);
@@ -225,10 +222,15 @@ abstract class XmlConverter
       if(count($namespaces_declaredOnNode)>0)
         foreach($namespaces_declaredOnNode as $key=>$value){
 
+          print "The ns for $node->nodeName: $key:$value\n";
+
           /* Namespaces already in the current context are declared in an ancestor node, do not add them unless we are redefining the namespace */
             if(!isset($namespaceContext[$key])
                 ||(isset($namespaceContext[$key]) && $namespaceContext[$key] !== $value)){
-              $attributes["xmlns:$key"] = $value;
+              if($key==="")
+                  $attributes["xmlns"] = $value;
+              else
+                $attributes["xmlns:$key"] = $value;
               $namespaceContext[$key]=$value;
             }
         }
@@ -298,8 +300,9 @@ abstract class XmlConverter
      */
     private static function trimWhiteSpaceTextNodes (\DOMNode $root){
 
-      if($root->nodeType === XML_TEXT_NODE)
+      if($root->nodeType === XML_TEXT_NODE && ctype_space($root->nodeValue)){
         $root->nodeValue = trim($root->nodeValue);
+      }
 
       if($root->hasChildNodes())
         foreach($root->childNodes as $child)
