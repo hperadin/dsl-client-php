@@ -215,15 +215,10 @@ abstract class XmlConverter
       foreach($node->attributes as $attribute)
         $attributes[$attribute->nodeName] = $attribute->nodeValue;
 
-      /*
-       * $node->attributes does not retrieve the xmlns attributes, so we need to append them manually
-       */
-      $namespaces_declaredOnNode = simplexml_import_dom($node)->getDocNamespaces();
+      /* $node->attributes does not retrieve the xmlns attributes, so we need to append them manually */
+      $namespaces_declaredOnNode = simplexml_import_dom($node)->getDocNamespaces(false,false);
       if(count($namespaces_declaredOnNode)>0)
         foreach($namespaces_declaredOnNode as $key=>$value){
-
-          print "The ns for $node->nodeName: $key:$value\n";
-
           /* Namespaces already in the current context are declared in an ancestor node, do not add them unless we are redefining the namespace */
             if(!isset($namespaceContext[$key])
                 ||(isset($namespaceContext[$key]) && $namespaceContext[$key] !== $value)){
@@ -300,7 +295,9 @@ abstract class XmlConverter
      */
     private static function trimWhiteSpaceTextNodes (\DOMNode $root){
 
-      if($root->nodeType === XML_TEXT_NODE && ctype_space($root->nodeValue)){
+      if($root->nodeType === XML_TEXT_NODE
+          && ctype_space($root->nodeValue))
+      {
         $root->nodeValue = trim($root->nodeValue);
       }
 
