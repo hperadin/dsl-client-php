@@ -61,72 +61,129 @@ abstract class XmlConverter
         return $result;
     }
 
-    private static function build_xml(array $arr)
+    private static function build_xml(array $rootArray)
     {
-        $keys = array_keys($arr);
-        $name = $keys[0];
-        $root = $arr[$name];
 
-        if (is_array($root) && array_key_exists('#text', $root)) {
-            $text = $root['#text'];
-        } else if (is_string($root)) {
-            $text = $root;
-        } else {
-            $text = '';
+        if(count($rootArray) > 1){
+          die("Single root element required.");
         }
 
-        $str = '<'.$name.'>'.$text.'</'.$name.'>';
-        $xml = new \SimpleXMLElement($str);
+        $name = key($rootArray);
+        $root = current($rootArray);
 
-        if(is_array($root))
-            self::array_to_xml($root, $xml);
+        // TODO: See if all is well with namespaces
+        $doc = new \DOMDocument();
+        $xml = $doc->createElement($name);
+        self::buildXmlFromJsonElement($doc, $xml, $root);
 
-        return $xml;
+        $doc->appendChild($xml);
+
+//         print "===\n";
+//         print "XML converted: \n";
+//         print($doc->saveXML());
+//         print "===\n";
+
+        return simplexml_import_dom($xml);
+    }
+
+    private static function buildXmlFromJsonElement(\DOMDocument &$doc, \DOMElement &$root, $json){
+        if(is_array($json)){
+          foreach($json as $childKey => $childValue){
+            if(self::startsWith('@', $childKey)){
+              $attr = $doc->createAttribute(substr($childKey, 1));
+              $attr->nodeValue=$childValue;
+              $root->appendChild($attr);
+//               print("Added attribute: $childKey:$childValue\n");
+            }
+            else if(self::startsWith('#text', $childKey)){
+              $txt = $doc->createTextNode($childValue);
+              $root->appendChild($txt);
+//               print("Added text node: $childKey:$childValue\n");
+            }
+            else if(self::startsWith('#cdata', $childKey)){
+              $cData = $doc->createCDATASection($childValue);
+              $root->appendChild($cData);
+              //               print("Added cData node: $childKey:$childValue\n");
+            }
+            else if(self::startsWith('#comment', $childKey)){
+              $comment = $doc->createComment($childValue);
+              $root->appendChild($comment);
+              //               print("Added comment node: $childKey:$childValue\n");
+            }
+            else if(is_array($childValue)){
+              if(self::hasOnlyNumericKeys($childValue)){
+//                 print("Doing array node: $childKey\n");
+                self::buildXmlFromJsonArray($doc, $root, $childKey, $childValue);
+              }else{
+//                 print("Doing a normal child node: $childKey\n");
+                $child = $doc->createElement($childKey);
+                $root->appendChild($child);
+                self::buildXmlFromJsonElement($doc, $child, $childValue);
+              }
+            }
+            else{
+//               print("Doing a non-array child node: $childKey\n");
+              $child = $doc->createElement($childKey);
+                $root->appendChild($child);
+                self::buildXmlFromJsonElement($doc, $child, $childValue);
+            }
+          }
+        }else{
+//           print("Doing a non-array node: $json\n");
+          $root->nodeValue = $json;
+        }
+    }
+
+    private static function buildXmlFromJsonArray(\DOMDocument &$doc, \DOMElement &$parent, $collectiveName, array $json){
+      foreach ($json as $key=>$value){
+//         print("Doing an array node: $key:$collectiveName\n");
+        $element = $doc -> createElement($collectiveName);
+        $parent -> appendChild($element);
+        self::buildXmlFromJsonElement($doc, $element, $value);
+      }
     }
 
     private static function array_to_xml(array $arr, &$xml)
     {
-        foreach($arr as $key => $value) {
-            if(strpos($key, '@', 0) === 0) {
-                $xml->addAttribute(substr($key, 1), $value);
-            } else if(is_array($value)) {
-                $child_has_only_numeric_keys = true;
-                $i = 0;
-                foreach($value as $k=>$v)
-                    if($k!==$i++)
-                        $child_has_only_numeric_keys = false;
-
+      foreach($arr as $childKey => $childValue) {
+            if(self::startsWith('@', $childKey)){
+                $xml->addAttribute(substr($childKey, 1), $childValue);
+            } else if(is_array($childValue)) {
                 // addChild does not escape ampersands and left angle bracket
                 // this is specified behaviour
                 // @see https://bugs.php.net/bug.php?id=45253
-                if($child_has_only_numeric_keys) {
-                    foreach($value as $k=>$v) {
+                if(self::hasOnlyNumericKeys($childValue)) {
+                    foreach($childValue as $grandchildKey=>$grandchildValue) {
                         $subnode = null;
-                        if (is_array($v)) {
-                            if (array_key_exists('#text', $v)) {
-                                $subnode = $xml->addChild("$key", str_replace(array('&', '<'), array('&amp;', '&lt;'), $v['#text']));
-                            } else {
-                                $subnode = $xml->addChild("$key");
-                            }
+                        if (is_array($grandchildValue)) {
+
+                            $subnode = array_key_exists('#text', $grandchildValue)
+                              ? $xml->addchild("$childKey", self::escapeXml($grandchildValue['#text']))
+                              : $xml->addChild("$childKey");
+
                             if ($subnode!==null) {
-                                self::array_to_xml($v, $subnode);
+                                self::array_to_xml($grandchildValue, $subnode);
                             }
-                        } else if (is_string($v)) {
-                            $xml->addChild("$key", str_replace(array('&', '<'), array('&amp;', '&lt;'), $v));
+
+                        } else if (is_string($grandchildValue)) {
+                            $xml->addChild("$childKey", self::escapeXml($grandchildValue));
                         } else {
-                            $xml->addChild("$key");
+                            $xml->addChild("$childKey");
                         }
                     }
-                } else if(!is_numeric($key)) {
-                    $subnode = array_key_exists('#text', $value)
-                        ? $xml->addChild("$key", str_replace(array('&', '<'), array('&amp;', '&lt;'), $value['#text']))
-                        : $xml->addChild("$key");
-                    self::array_to_xml($value, $subnode);
+                } else if(!is_numeric($childKey)) {
+                    $subnode = array_key_exists('#text', $childValue)
+                        ? $xml->addchild("$childKey", self::escapeXml($childValue['#text']))
+                        : $xml->addChild("$childKey");
+                    self::array_to_xml($childValue, $subnode);
                 } else {
-                    self::array_to_xml($value, $xml);
+                    /* We skip the deserialisation of numeric keys, since they are just elements?
+                     * TODO: check if maybe these should be deserialised having node name as key from parent array... */
+                    self::array_to_xml($childValue, $xml);
                 }
-            } else if($key !== '#text')
-                $xml->$key = "$value";
+                // TODO: #cdata perhaps, and the rest of the stuff
+            } else if($childKey !== '#text')
+                $xml->$childKey = "$childValue";
         }
     }
 
@@ -204,7 +261,7 @@ abstract class XmlConverter
      * @param $node The root node of the current DOM subtree
      * @param $namespaceContext all namespaces inherited from the parent context
      */
-    private static function build_from_xml(\DOMNode $node, $namespaceContext){
+    private static function build_from_xml(\DOMNode $node){
 
       $jsonArray = array();
 
@@ -219,15 +276,10 @@ abstract class XmlConverter
       $namespaces_declaredOnNode = simplexml_import_dom($node)->getDocNamespaces(false,false);
       if(count($namespaces_declaredOnNode)>0)
         foreach($namespaces_declaredOnNode as $key=>$value){
-          /* Namespaces already in the current context are declared in an ancestor node, do not add them unless we are redefining the namespace */
-            if(!isset($namespaceContext[$key])
-                ||(isset($namespaceContext[$key]) && $namespaceContext[$key] !== $value)){
               if($key==="")
                   $attributes["xmlns"] = $value;
               else
                 $attributes["xmlns:$key"] = $value;
-              $namespaceContext[$key]=$value;
-            }
         }
 
       /* If there are no children and attributes, just return the node's text value (or NULL) */
@@ -254,7 +306,7 @@ abstract class XmlConverter
         $items = array();
         foreach($children as $child){
           if($child->nodeType === XML_ELEMENT_NODE){
-            $items[]=self::build_from_xml($child, $namespaceContext);
+            $items[]=self::build_from_xml($child);
           }
           else if($child->nodeType ===XML_TEXT_NODE && $child->nodeValue ==="")
           {/* do not serialize this*/}
@@ -311,6 +363,28 @@ abstract class XmlConverter
       }
 
       return $childrenByName;
+    }
+
+    private static function escapeXml($xml_string){
+      return str_replace(array('&', '<'), array('&amp;', '&lt;'), $xml_string);
+    }
+
+    private static function hasOnlyNumericKeys(array $value){
+      $hasOnlyNumericKeys = true;
+      $i = 0;
+      foreach($value as $k=>$v)
+        if($k!==$i++)
+          $hasOnlyNumericKeys = false;
+
+          return $hasOnlyNumericKeys;
+    }
+
+    private static function startsWith($symbol, $aString){
+      return substr($aString, 0, strlen($symbol)) === $symbol;
+    }
+
+    private static function isNamespaceAttribute($attrName){
+      return substr($attrName,0,strlen("@xmlns"))==="@xmlns";
     }
 
 }
