@@ -230,22 +230,16 @@ abstract class XmlConverter
             }
         }
 
-      /* If there are no children and attributes, just return the node's text value */
+      /* If there are no children and attributes, just return the node's text value (or NULL) */
       if(count($children)===0 && count($attributes)===0){
         $txt = $node->textContent;
-        if($txt==="") $jsonArray=NULL; else $jsonArray=$txt;
+        if($txt==="")
+          $jsonArray=NULL;
+        else
+          $jsonArray=$txt;
       }
 
-      /* Sort the nodes by children names */
-      $childrenByName=array();
-      foreach($children as $child){
-        $name=$child->nodeName;
-
-        if(!isset($childrenByName[$name]))
-          $childrenByName[$name]=array();
-
-        $childrenByName[$name][]=$child;
-      }
+      $childrenByName = self::groupChildrenByName($children);
 
       /* Serialize the attributes */
       foreach($attributes as $name=>$value){
@@ -265,8 +259,7 @@ abstract class XmlConverter
           else if($child->nodeType ===XML_TEXT_NODE && $child->nodeValue ==="")
           {/* do not serialize this*/}
           else
-            //$items[]=is_null($child->nodeValue)? "" : $child->nodeValue;
-            $items[]=$child->nodeValue; // TODO, see if this makes any difference; some NULL nodes were serialised as array(0) instead of NULL
+            $items[]=$child->nodeValue;
         }
 
         /* Insert the resulting object into the return value array */
@@ -282,7 +275,7 @@ abstract class XmlConverter
       if(count($attributes) === 0 && count($jsonArray) === 1 && key($jsonArray)==="#text")
         $jsonArray=current($jsonArray);
 
-      /* Zero-sized arrays are in fact NULLs*/
+      /* Zero-sized arrays are in fact NULLs */
       if(count($jsonArray)===0)
         $jsonArray=NULL;
 
@@ -306,24 +299,18 @@ abstract class XmlConverter
           self::trimWhiteSpaceTextNodes($child);
     }
 
-    /**
-     * Returns an map of $name => $children_group,
-     * grouping nodes in $children by name
-     */
-    private static function childrenGroupedByName(\DOMNodeList $children){
+    private static function groupChildrenByName($kinder){
+      $childrenByName=array();
+      foreach($kinder as $child){
+        $name=$child->nodeName;
 
-      $groupedByName=array();
+        if(!isset($childrenByName[$name]))
+          $childrenByName[$name]=array();
 
-      foreach ($children as $child){
-        $name = $child->nodeName;
-
-        if(!isset($groupedByName[$name]))
-          $groupedByName[$name]=array();
-
-        $groupedByName[$name][]=$child;
+        $childrenByName[$name][]=$child;
       }
 
-      return $groupedByName;
+      return $childrenByName;
     }
 
 }
