@@ -27,10 +27,10 @@ class XmlToJsonTest extends BaseTestCase {
       ) );
     }
 
-       return $files_packed_as_arrays;
+      return $files_packed_as_arrays;
 
       return array (
-          $files_packed_as_arrays[8]
+          $files_packed_as_arrays[0]
       );
   }
 
@@ -55,23 +55,25 @@ class XmlToJsonTest extends BaseTestCase {
     $referenceJson_string = file_get_contents ( $this->getReferencePath ( $convertedJson_filename ) );
     $referenceJson_object = json_decode ( $referenceJson_string, true );
 
-    print "converting to array: \n";
+//     print "converting to array: \n";
     $convertedJson_object = XmlConverter::toArray ( $sourceXml_object );
 
-//     print "converted to array: \n";
-//     var_dump($convertedJson_object);
-
-    //$roundtripXml_object = XmlConverter::toXml ( $convertedJson_object );
+    // TODO: This needs to be implemented and tested
+    $roundtripXml_object = XmlConverter::toXml ( $convertedJson_object );
 
     /*
-     * Expected equivalences: $convertedJson_object == $referenceJson_object $sourceXml_object == $roundTripXml_object == referenceRoundtripXml_object
+     * Expected equivalences:
+     * - $convertedJson_object == $referenceJson_object
+     * - $sourceXml_object == $roundTripXml_object == referenceRoundtripXml_object
      */
 
        print "converted json vs reference json: \n";
        $this->assertJsonEquivalent($referenceJson_object, $convertedJson_object);
 
-//     print "roundtrip vs reference roundtrip xml: \n";
-//     $this->assertXmlEquivalent ( $roundtripXml_object, $referenceRoundtripXml_object );
+     print "roundtrip vs reference roundtrip xml: \n";
+     //$this->assertXmlEquivalent ( $roundtripXml_object, $referenceRoundtripXml_object );
+     $this->assertEqualXMLStructure(dom_import_simplexml($roundtripXml_object), dom_import_simplexml($referenceRoundtripXml_object));
+
 
 //     print "roundtrip vs source xml: \n";
 //     $this->assertXmlEquivalent ( $roundtripXml_object, $sourceXml_object );
@@ -80,12 +82,12 @@ class XmlToJsonTest extends BaseTestCase {
 //     $this->assertXmlEquivalent ( $referenceRoundtripXml_object, $sourceXml_object );
   }
   public function assertJsonEquivalent($expected, $actual) {
-    print "---Expected:---\n";
-    var_dump($expected);
-    print "---Actual:---\n";
-    var_dump($actual);
-    print "---Comparator output:---\n";
-    var_dump(XmlArrayComparator::equals($expected, $actual) . "\n");
+//     print "---Expected:---\n";
+//     var_dump($expected);
+//     print "---Actual:---\n";
+//     var_dump($actual);
+//     print "---Comparator output:---\n";
+    $this->assertEquals(XmlArrayComparator::equals($expected, $actual), TRUE);
   }
 
   public function assertXmlEquivalent($lhs, $rhs) {

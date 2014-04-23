@@ -38,57 +38,31 @@ class XmlArrayComparator {
     $pathUpToNode_lhs=array();
     $pathUpToNode_rhs=array();
 
-     print_r("------------LHS--------------\n");
-    self::buildPaths ( $xmlPaths_lhs, $pathUpToNode_lhs, $xml_lhs, array());
-    print_r("-------------RHS-------------\n");
-    self::buildPaths ( $xmlPaths_rhs, $pathUpToNode_rhs, $xml_rhs, array());
-    print_r("--------------------------\n");
+    self::buildPaths ( $xmlPaths_lhs, $pathUpToNode_lhs, $xml_lhs);
+    self::buildPaths ( $xmlPaths_rhs, $pathUpToNode_rhs, $xml_rhs);
 
     $result = self::compareAllPaths ( $xmlPaths_lhs, $xmlPaths_rhs );
-    var_dump ( $result );
 
     return $result;
   }
 
-  private static function buildPaths(&$allPaths, $pathUpToCurrentNode, $node, $namespaces) {
+  private static function buildPaths(&$allPaths, $pathUpToCurrentNode, $node) {
     if (is_array ( $node )) {
       foreach ( $node as $key => $child ) {
-
-        /* If the child is a namespace attribute, put it on the namespace context.
-         If it's already there, skip it in comparison. */
-        if(substr($key, 0, strlen("@xmlns")) === "@xmlns"){
-          if(!isset($namespaces[$key])
-                ||(isset($namespaces[$key]) && $namespaces[$key] !== $child)){
-            /* print("namespace onto current stack: $key\n"); */
-            $namespaces[$key] = $child;
-          }
-          else{
-            continue;
-          }
-        }
-        /* Non-array #text nodes are normalised as a single string in the path built */
-
-        if(substr($key, 0, strlen("#text")) === "#text"){
-          if(!is_array($child)){
-            $pathUpUntilThisChild = $pathUpToCurrentNode;
-            self::buildPaths ( $allPaths, $pathUpUntilThisChild, $child, $namespaces);
-
-            continue;
-          }
-        }
 
         $pathUpUntilThisChild = $pathUpToCurrentNode;
         $pathUpUntilThisChild [] = $key;
 
-        self::buildPaths ( $allPaths, $pathUpUntilThisChild, $child, $namespaces);
+        self::buildPaths ( $allPaths, $pathUpUntilThisChild, $child);
       }
     } else {
       $pathUpToCurrentNode [] = $node;
       $allPaths [] = $pathUpToCurrentNode;
 
-      print "Path complete -> \n";
-      print "Path up till now:";
-      var_dump ( $pathUpToCurrentNode );
+      //Debug output:
+      //print "Path complete -> \n";
+      //print "Path up till now:";
+      //var_dump ( $pathUpToCurrentNode );
     }
 
 
@@ -137,6 +111,7 @@ class XmlArrayComparator {
           unset ( $lhs [$key_lhs] );
           unset ( $rhs [$key] );
 
+// Debug output:
 //           print_r ( "===\n" );
 //           print_r ( "Match!:\n" );
 //           print_r ( "===lhs:".count($lhs)."===\n" );
@@ -153,6 +128,7 @@ class XmlArrayComparator {
         print_r ( "No pair found for path:\n" );
         print_r ( "---\n" );
         var_dump ( $lhsPath );
+        print_r ( "---\n" );
         $retval=FALSE;
       }
     }
