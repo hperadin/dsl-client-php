@@ -22,3 +22,6 @@ vendor
 .project
 .buildpath
 .settings
+
+# misc
+*.tmp
