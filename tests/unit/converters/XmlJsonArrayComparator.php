@@ -25,7 +25,7 @@ use NGS\Converter\XmlConverter;
  * and text content the xmlns attribute is lost in conversion, and the #text node is merged
  * into a string.
  */
-class XmlArrayComparator {
+class XmlJsonArrayComparator {
 
   /**
    * Returns true if the two XML arrays are equal
@@ -124,11 +124,11 @@ class XmlArrayComparator {
         }
       }
       if ($found === FALSE) {
-        print_r ( "---\n" );
-        print_r ( "No pair found for path:\n" );
-        print_r ( "---\n" );
-        var_dump ( $lhsPath );
-        print_r ( "---\n" );
+//         print_r ( "---\n" );
+//         print_r ( "No pair found for path:\n" );
+//         print_r ( "---\n" );
+//         var_dump ( $lhsPath );
+//         print_r ( "---\n" );
         $retval=FALSE;
       }
     }

@@ -1,5 +1,6 @@
 <?php
 include "XmlArrayComparator.php";
+include "XmlDOMComparator.php";
 
 use NGS\Converter\XmlConverter;
 
@@ -29,9 +30,7 @@ class XmlToJsonTest extends BaseTestCase {
 
       return $files_packed_as_arrays;
 
-      return array (
-          $files_packed_as_arrays[0]
-      );
+//       return array ($files_packed_as_arrays[2]);
   }
 
   /**
@@ -58,7 +57,6 @@ class XmlToJsonTest extends BaseTestCase {
 //     print "converting to array: \n";
     $convertedJson_object = XmlConverter::toArray ( $sourceXml_object );
 
-    // TODO: This needs to be implemented and tested
     $roundtripXml_object = XmlConverter::toXml ( $convertedJson_object );
 
     /*
@@ -67,19 +65,17 @@ class XmlToJsonTest extends BaseTestCase {
      * - $sourceXml_object == $roundTripXml_object == referenceRoundtripXml_object
      */
 
-       print "converted json vs reference json: \n";
-       $this->assertJsonEquivalent($referenceJson_object, $convertedJson_object);
+     print "converted json vs reference json: \n";
+     $this->assertJsonEquivalent($referenceJson_object, $convertedJson_object);
 
      print "roundtrip vs reference roundtrip xml: \n";
-     //$this->assertXmlEquivalent ( $roundtripXml_object, $referenceRoundtripXml_object );
-     $this->assertEqualXMLStructure(dom_import_simplexml($roundtripXml_object), dom_import_simplexml($referenceRoundtripXml_object));
+     $this->assertXmlEquivalent ( $roundtripXml_object, $referenceRoundtripXml_object );
 
+     print "roundtrip vs source xml: \n";
+     $this->assertXmlEquivalent ( $roundtripXml_object, $sourceXml_object );
 
-//     print "roundtrip vs source xml: \n";
-//     $this->assertXmlEquivalent ( $roundtripXml_object, $sourceXml_object );
-
-//     print "reference roundtrip xml vs source xml:\n";
-//     $this->assertXmlEquivalent ( $referenceRoundtripXml_object, $sourceXml_object );
+     print "reference roundtrip xml vs source xml (this is a sanity check for our xml comparator):\n";
+     $this->assertXmlEquivalent ( $referenceRoundtripXml_object, $sourceXml_object );
   }
   public function assertJsonEquivalent($expected, $actual) {
 //     print "---Expected:---\n";
@@ -87,14 +83,19 @@ class XmlToJsonTest extends BaseTestCase {
 //     print "---Actual:---\n";
 //     var_dump($actual);
 //     print "---Comparator output:---\n";
-    $this->assertEquals(XmlArrayComparator::equals($expected, $actual), TRUE);
+    $this->assertEquals(XmlJsonArrayComparator::equals($expected, $actual), TRUE);
   }
 
-  public function assertXmlEquivalent($lhs, $rhs) {
-    print_r ( "lhs Xml:\n");
-    print_r ( $lhs);
-    print_r ( "rhs Xml:\n");
-    print_r ( $rhs);
+  public function assertXmlEquivalent($expected, $actual) {
+
+//     print "---Expected:---\n";
+//     var_dump($expected -> asXml());
+//     print "---Actual:---\n";
+//     var_dump($actual -> asXml());
+//     print "---Comparator output:---\n";
+
+    $this->assertEquals(XmlDOMComparator::equals(dom_import_simplexml($expected), dom_import_simplexml($actual)), TRUE);
+    //$this->assertEqualXMLStructure(dom_import_simplexml($expected), dom_import_simplexml($actual));
   }
 
 
