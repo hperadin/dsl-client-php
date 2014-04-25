@@ -74,7 +74,7 @@ class XmlToJsonTest extends BaseTestCase {
      $this->assertJsonEquivalent ( $roundtripJson_object, $sourceJson_object );
 
      print "reference roundtrip json vs source json (this is a sanity check for our xml comparator):\n";
-     $this->assertXmlEquivalent ( $referenceRoundtripJson_object, $sourceJson_object );
+     $this->assertJsonEquivalent ( $referenceRoundtripJson_object, $sourceJson_object );
   }
   public function assertJsonEquivalent($expected, $actual) {
 //     print "---Expected:---\n";
